@@ -2,8 +2,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchdiffeq import odeint
-from loss import braycurtis
 from sklearn.utils import shuffle
+from sklearn.model_selection import KFold
+
+from loss import braycurtis
+from data import import_data
 import argparse
 
 # Dataset names, learning rates, epochs, and minibatch sizes
@@ -15,9 +18,9 @@ MINIBATCHES = [5, 23, 5, 25]
 
 # FitnessLayer Class
 class FitnessLayer(nn.Module):
-    def __init__(self, N):
+    def __init__(self, E):
         super(FitnessLayer, self).__init__()
-        self.W = nn.Parameter(torch.randn(N, N))  # Initialize the weight matrix
+        self.W = nn.Parameter(torch.randn(E, E))  # Initialize the weight matrix
 
     def forward(self, p):
         ## p stands for the
@@ -62,12 +65,27 @@ def loss(f, z, y):
     return braycurtis(y_hat, y)
 
 
-def train():
+def train(z, p, model, device): 
 
     pass
 
 
 def main(args):
+    data = args.data
+    assert data in DATASETS
+    idx = DATASETS.index(data)
+    print(f"Training data {data}")
+    z, p = import_data(data, root = args.root) # numpy [N,E], [N,E]
+    N, E = z.shape
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = FitnessLayer(E).to(device)
+    epoch = EPOCHS_LIST[idx]
+    
+    print(f"training on device: {device}")
+    train(z,p,model,device)
+
+
+    
 
     pass
 

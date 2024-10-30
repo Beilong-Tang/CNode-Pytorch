@@ -1,17 +1,17 @@
-import torch
+from typing import Tuple
 import numpy as np
 from sklearn.preprocessing import normalize
 from sklearn.utils import shuffle
 
 
-def import_data(data, root="."):
+def import_data(data:str, root=".") -> Tuple[np.ndarray, np.ndarray]:
     """
     Args:
         data: The name of the data
         root: the path root
     Returns:
-        Z: [B,E], the initial [1,1,1,0,...] vector after nomalization
-        P: [B,E], the final distribution
+        Z: numpy [B,E], the initial [1,1,1,0,...] vector after nomalization
+        P: numpy [B,E], the final distribution
 
     """
     P = np.loadtxt(f"{root}/Data/Experimental/{data}/P.csv", delimiter=",")
@@ -21,6 +21,4 @@ def import_data(data, root="."):
     if data == "Soil_Vivo":
         Z, P = shuffle(Z, P)
         Z, P = np.split(Z, [int(0.1 * len(Z))]), np.split(P, [int(0.1 * len(P))])
-    Z = torch.from_numpy(np.transpose(Z))
-    P = torch.from_numpy(np.transpose(P))
     return Z, P
