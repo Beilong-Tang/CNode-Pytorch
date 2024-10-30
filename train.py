@@ -4,6 +4,13 @@ import torch.optim as optim
 from torchdiffeq import odeint
 from loss import braycurtis
 from sklearn.utils import shuffle
+import argparse
+
+# Dataset names, learning rates, epochs, and minibatch sizes
+DATASETS = ["Drosophila_Gut", "Soil_Vitro", "Human_Gut", "Soil_Vivo"]
+LEARNING_RATES = [[0.001, 0.01], [0.01, 0.05], [0.01, 0.05], [0.05, 0.1]]
+EPOCHS_LIST = [200, 100, 150, 50]
+MINIBATCHES = [5, 23, 5, 25]
 
 
 # FitnessLayer Class
@@ -13,17 +20,17 @@ class FitnessLayer(nn.Module):
         self.W = nn.Parameter(torch.randn(N, N))  # Initialize the weight matrix
 
     def forward(self, p):
-        ## p stands for the 
+        ## p stands for the
         f = self.W @ p
         p_dot = p * (f - torch.ones(p.size(0), 1) @ (p.T @ f))
         return p_dot
 
 
 # Neural ODE prediction function
-def predict(f, z): 
+def predict(f, z):
     """
     Args:
-        f: the ode function 
+        f: the ode function
         z: [B, E], the initial state of the ODE where E stands for the dimension
     Returns:
         y_hat: [B, E], the final output at time step t = 1
@@ -37,11 +44,11 @@ def predict(f, z):
     res = []
     for i in range(z.size(0)):
         res.append(odeint(f, z[i], torch.tensor([0.0, 1.0]), method="dopri5")[-1])
-    return torch.stack(res, dim = 0)
+    return torch.stack(res, dim=0)
 
 
 # Bray-Curtis Loss function
-def loss(f, z, y):  
+def loss(f, z, y):
     """
     calculate braycurtis loss
     Args:
@@ -54,6 +61,24 @@ def loss(f, z, y):
     y_hat = predict(f, z)
     return braycurtis(y_hat, y)
 
+
+def train():
+
+    pass
+
+
+def main(args):
+
+    pass
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data", type=str, default="Human_Gut")
+    parser.add_argument("--root", type=str, default=".")
+    args = parser.parse_args()
+    main(args)
+    pass
 
 # Training Reptile loop
 def train_reptile(node, epochs, mb, LR, Z, P, report):

@@ -14,9 +14,10 @@ def braycurtis(y_hat, y, mode="mean"):
     Returns:
         torch.Tensor(1): The braycurtis loss
     """
+    eps = 1e-8
     abs_diff = torch.abs(y_hat - y).sum(-1)  # [B]
     total_sum: torch.Tensor = (y_hat + y).sum(-1)  # [B]
-    res = abs_diff / total_sum  # [B]
+    res = abs_diff / (total_sum + eps)  # [B]
     if mode == "mean":
         return res.mean()
     elif mode == "maximum":
