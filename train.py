@@ -106,7 +106,7 @@ def train(
     for idx, (train_idx, test_idx) in enumerate(kf.split(z)):
         ##
         z_train, p_train = z[train_idx, :], p[train_idx, :]
-        z_test, p_test = z[test_idx, :], p[test_idx:,]
+        z_test, p_test = z[test_idx, :], p[test_idx, :]
         model = FitnessLayer(E).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         ##
