@@ -158,7 +158,6 @@ def main(args):
         batch_size,
         reptile_lr,
         log,
-        args.save_interval,
         args.save_dir,
         args.name,
     )
