@@ -3,11 +3,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torchdiffeq import odeint
 from sklearn.utils import shuffle
-from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
+import numpy as np
+import argparse
+import time
 
 from loss import braycurtis
 from data import import_data
-import argparse
+from log import setup_logger
+
 
 # Dataset names, learning rates, epochs, and minibatch sizes
 DATASETS = ["Drosophila_Gut", "Soil_Vitro", "Human_Gut", "Soil_Vivo"]
@@ -20,13 +24,15 @@ MINIBATCHES = [5, 23, 5, 25]
 class FitnessLayer(nn.Module):
     def __init__(self, E):
         super(FitnessLayer, self).__init__()
-        self.W = nn.Parameter(torch.randn(E, E))  # Initialize the weight matrix
+        self.W = nn.Parameter(torch.zeros(E, E))  # Initialize the weight matrix
 
-    def forward(self, p):
+    def forward(self, t, p):
         ## p stands for the
         f = self.W @ p
-        p_dot = p * (f - torch.ones(p.size(0), 1) @ (p.T @ f))
-        return p_dot
+        f = f.unsqueeze(1)
+        p = p.unsqueeze(1)
+        p_dot = p * (f - (torch.ones(p.size(0), 1).to(p.device) @ p.T) @ f)
+        return p_dot.squeeze(1)
 
 
 # Neural ODE prediction function
@@ -65,29 +71,74 @@ def loss(f, z, y):
     return braycurtis(y_hat, y)
 
 
-def train(z, p, model, device): 
-
-    pass
+def train(
+    z: np.ndarray,
+    p: np.ndarray,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    device: str,
+    epoch: int,
+    batch_size: int,
+    reptile_lr: float,
+    log
+):
+    """
+    z: [N,E]
+    p: [N,E]
+    model: nn.Module
+    optimzer: optim.Optimizer
+    device: str
+    eopch: int
+    batch_size: int
+    """
+    ## Split z, p into training and testing dataset
+    z_train, z_test, y_train, y_test = train_test_split(
+        z, p, test_size=0.2, random_state=42
+    )
+    z_train, z_test, y_train, y_test = (
+        torch.from_numpy(z_train).float().to(device),
+        torch.from_numpy(z_test).float().to(device),
+        torch.from_numpy(y_train).float().to(device),
+        torch.from_numpy(y_test).float().to(device),
+    )
+    for e in range(0, epoch):
+        ct = 0
+        start_time = time.time()
+        model.train()
+        for b_start in range(0, z_train.shape[0], batch_size):
+            b_end = min(b_start + batch_size, z_train.shape[0])
+            z_train_batch = z_train[b_start:b_end, :]  # [B,E]
+            y_train_batch = y_train[b_start:b_end, :]  # [B,E]
+            loss_ = loss(model, z_train_batch, y_train_batch)
+            loss_.backward()
+            optimizer.step()
+            # Reptile update
+            for param in model.parameters():
+                param.data += reptile_lr * (param.data - param.detach())
+        model.eval()
+        with torch.no_grad():
+            loss_cv = loss(model, z_test, y_test).item()
+        log.info(
+            f"| Epoch: {e:05} | CV Loss: {loss_cv:.3f}| Time: {int(time.time()-start_time):04}s"
+        )
 
 
 def main(args):
     data = args.data
     assert data in DATASETS
     idx = DATASETS.index(data)
-    print(f"Training data {data}")
-    z, p = import_data(data, root = args.root) # numpy [N,E], [N,E]
+    log = setup_logger("log")
+    log.info(f"Training data {data}")
+    z, p = import_data(data, root=args.root)  # numpy [N,E], [N,E]
     N, E = z.shape
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = FitnessLayer(E).to(device)
     epoch = EPOCHS_LIST[idx]
-    
-    print(f"training on device: {device}")
-    train(z,p,model,device)
-
-
-    
-
-    pass
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATES[idx][0])
+    batch_size = MINIBATCHES[idx]
+    reptile_lr = LEARNING_RATES[idx][1]
+    log.info(f"training on device: {device}")
+    train(z, p, model, optimizer, device, epoch, batch_size, reptile_lr, log)
 
 
 if __name__ == "__main__":
@@ -95,126 +146,6 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default="Human_Gut")
     parser.add_argument("--root", type=str, default=".")
     args = parser.parse_args()
+    print(args)
     main(args)
     pass
-
-# Training Reptile loop
-def train_reptile(node, epochs, mb, LR, Z, P, report):
-    optimizer = optim.Adam(node.parameters(), lr=LR[0])
-    for e in range(epochs):
-        Z_shuffled, P_shuffled = shuffle(Z, P)
-        V = [param.clone() for param in node.parameters()]
-
-        for i in range(0, len(Z_shuffled), mb):
-            z_batch = Z_shuffled[i : i + mb]
-            p_batch = P_shuffled[i : i + mb]
-
-            optimizer.zero_grad()
-            loss = loss(node, z_batch, p_batch)
-            loss.backward()
-            optimizer.step()
-
-        with torch.no_grad():
-            for w, v in zip(node.parameters(), V):
-                dv = (w.data - v).clone()
-                w.data.copy_(v + dv * LR[1])
-
-        if e % report == 0:
-            print(f"Epoch {e}:\tLoss: {loss(node, Z, P)}")
-
-    return node.state_dict()
-
-
-# Early stopping and training
-def train_reptile_early_stop(
-    node,
-    epochs,
-    mb,
-    LR,
-    Ztrn,
-    Ptrn,
-    Zval,
-    Pval,
-    Ztst,
-    Ptst,
-    report,
-    early_stopping_threshold,
-):
-    optimizer = optim.Adam(node.parameters(), lr=LR[0])
-    es_counter = 0
-
-    loss_train = []
-    loss_val = []
-    loss_test = []
-
-    for e in range(epochs):
-        Z_shuffled, P_shuffled = shuffle(Ztrn, Ptrn)
-        V = [param.clone() for param in node.parameters()]
-
-        for i in range(0, len(Z_shuffled), mb):
-            z_batch = Z_shuffled[i : i + mb]
-            p_batch = P_shuffled[i : i + mb]
-
-            optimizer.zero_grad()
-            loss = loss(node, z_batch, p_batch)  # [B,N], #[B,N]
-            loss.backward()
-            optimizer.step()
-
-        with torch.no_grad():
-            for w, v in zip(node.parameters(), V):
-                dv = (w.data - v).clone()
-                w.data.copy_(v + dv * LR[1])
-
-        # Logging losses
-        loss_train.append(loss(node, Ztrn, Ptrn).item())
-        loss_val.append(loss(node, Zval, Pval).item())
-        loss_test.append(loss(node, Ztst, Ptst).item())
-
-        # Early stopping logic
-        if e > early_stopping_threshold:
-            if es_counter > 10:
-                print(f"Early stopping at epoch {e}")
-                break
-
-            if loss_val[-1] > loss_val[-2]:
-                es_counter += 1
-            else:
-                es_counter = 0
-
-        if e % report == 0:
-            print(
-                f"Epoch {e}: Train Loss: {loss_train[-1]}, Val Loss: {loss_val[-1]}, Test Loss: {loss_test[-1]}"
-            )
-
-    return node.state_dict(), loss_train, loss_val, loss_test
-
-
-# Example Usage
-N = 10  # Example size
-epochs = 100
-mb = 32
-LR = [1e-3, 1e-3]
-Ztrn = torch.rand(100, N)  # Example data
-Ptrn = torch.rand(100, N)  # Example data
-Zval = torch.rand(20, N)  # Example validation data
-Pval = torch.rand(20, N)  # Example validation data
-Ztst = torch.rand(20, N)  # Example test data
-Ptst = torch.rand(20, N)  # Example test data
-
-node = FitnessLayer(N)
-
-# Train with early stopping
-train_reptile_early_stop(
-    node,
-    epochs,
-    mb,
-    LR,
-    Ztrn,
-    Ptrn,
-    Zval,
-    Pval,
-    Ztst,
-    Ptst,
-    report=10,
-    early_stopping_threshold=5,
-)
