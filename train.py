@@ -115,6 +115,7 @@ def train(
             loss_ = loss(model, z_train_batch, y_train_batch)
             loss_.backward()
             optimizer.step()
+            optimizer.zero_grad()
             # Reptile update
             for param in model.parameters():
                 param.data += reptile_lr * (param.data - param.detach())
