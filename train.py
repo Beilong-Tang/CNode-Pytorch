@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import argparse
 import time
+import os
 
 from loss import braycurtis
 from data import import_data
@@ -80,7 +81,9 @@ def train(
     epoch: int,
     batch_size: int,
     reptile_lr: float,
-    log
+    log,
+    save_dir: str,
+    name: str,
 ):
     """
     z: [N,E]
@@ -101,8 +104,8 @@ def train(
         torch.from_numpy(y_train).float().to(device),
         torch.from_numpy(y_test).float().to(device),
     )
+    best = float("inf")
     for e in range(0, epoch):
-        ct = 0
         start_time = time.time()
         model.train()
         for b_start in range(0, z_train.shape[0], batch_size):
@@ -121,14 +124,18 @@ def train(
         log.info(
             f"Epoch: {e:05} | CV Loss: {loss_cv:.3f} | Time: {int(time.time()-start_time):04}s"
         )
+        if loss_cv < best:
+            best = loss_cv
+            log.info(f"saving best model from epoch {e}")
+            torch.save(model.state_dict(), os.path.join(save_dir, f"{name}.pt"))
 
 
 def main(args):
     data = args.data
     assert data in DATASETS
     idx = DATASETS.index(data)
-    log = setup_logger("log")
-    log.info(f"Training data {data}")
+    log = setup_logger("log", name=args.name)
+    log.info(args)
     z, p = import_data(data, root=args.root)  # numpy [N,E], [N,E]
     N, E = z.shape
     log.info(f"total data shape: {z.shape}")
@@ -139,17 +146,36 @@ def main(args):
     batch_size = MINIBATCHES[idx]
     reptile_lr = LEARNING_RATES[idx][1]
     log.info(f"training on device: {device}")
-    train(z, p, model, optimizer, device, epoch, batch_size, reptile_lr, log)
+    os.makedirs(args.save_dir, exist_ok=True)
+    train(
+        z,
+        p,
+        model,
+        optimizer,
+        device,
+        epoch,
+        batch_size,
+        reptile_lr,
+        log,
+        args.save_interval,
+        args.save_dir,
+        args.name,
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default="Human_Gut")
     parser.add_argument("--root", type=str, default=".")
-    parser.add_argument("--save_interval", type=int, default=5, help="determines saving interval based on epoch number")
-    parser.add_argument("--save_dir", type=str, default="ckpt", help="the folder for saving the ckpt")
-    parser.add_argument("--name", type=str, default=None, help="determines the name of the experiment")
+    parser.add_argument(
+        "--save_dir", type=str, default="ckpt", help="the folder for saving the ckpt"
+    )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default="Human_Gut",
+        help="determines the name of the experiment",
+    )
     args = parser.parse_args()
-    print(args)
     main(args)
     pass
