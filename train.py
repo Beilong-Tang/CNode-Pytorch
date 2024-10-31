@@ -131,6 +131,7 @@ def main(args):
     log.info(f"Training data {data}")
     z, p = import_data(data, root=args.root)  # numpy [N,E], [N,E]
     N, E = z.shape
+    log.info(f"total data shape: {z.shape}")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = FitnessLayer(E).to(device)
     epoch = EPOCHS_LIST[idx]
