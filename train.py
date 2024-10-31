@@ -107,6 +107,12 @@ def train(
         ##
         z_train, p_train = z[train_idx, :], p[train_idx, :]
         z_test, p_test = z[test_idx, :], p[test_idx, :]
+        z_train, z_test, p_train, p_test = (
+            torch.from_numpy(z_train).float().to(device),
+            torch.from_numpy(z_test).float().to(device),
+            torch.from_numpy(p_train).float().to(device),
+            torch.from_numpy(p_test).float().to(device),
+        )
         model = FitnessLayer(E).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         ##
