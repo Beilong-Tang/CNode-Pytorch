@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torchdiffeq import odeint
 from sklearn.utils import shuffle
-from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 import numpy as np
 import argparse
@@ -76,14 +75,15 @@ def loss(f, z, y):
 def train(
     z: np.ndarray,
     p: np.ndarray,
-    name: str,
+    model: nn.Module,
+    optimizer: optim.Optimizer,
     device: str,
     epoch: int,
     batch_size: int,
-    lr: float,
     reptile_lr: float,
     log,
-    log_interval: int,
+    save_dir: str,
+    name: str,
 ):
     """
     z: [N,E]
@@ -95,70 +95,72 @@ def train(
     batch_size: int
     """
     ## Split z, p into training and testing dataset
-
-    test_loss_list = []
-    train_loss_list = []
-
-    N, E = z.shape
-
-    kf = KFold(n_splits=N)
-
-    for idx, (train_idx, test_idx) in enumerate(kf.split(z)):
-        ##
-        z_train, p_train = z[train_idx, :], p[train_idx, :]
-        z_test, p_test = z[test_idx, :], p[test_idx:,]
-        model = FitnessLayer(E).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        ##
-        for e in range(0, epoch):
-            start_time = time.time()
-            model.train()
-            for b_start in range(0, z_train.shape[0], batch_size):
-                b_end = min(b_start + batch_size, z_train.shape[0])
-                z_train_batch = z_train[b_start:b_end, :]  # [B,E]
-                p_train_batch = p_train[b_start:b_end, :]  # [B,E]
-                loss_ = loss(model, z_train_batch, p_train_batch)
-                loss_.backward()
-                optimizer.step()
-                optimizer.zero_grad()
+    z_train, z_test, y_train, y_test = train_test_split(
+        z, p, test_size=0.2, random_state=42
+    )
+    z_train, z_test, y_train, y_test = (
+        torch.from_numpy(z_train).float().to(device),
+        torch.from_numpy(z_test).float().to(device),
+        torch.from_numpy(y_train).float().to(device),
+        torch.from_numpy(y_test).float().to(device),
+    )
+    best = float("inf")
+    for e in range(0, epoch):
+        start_time = time.time()
+        model.train()
+        for b_start in range(0, z_train.shape[0], batch_size):
+            b_end = min(b_start + batch_size, z_train.shape[0])
+            z_train_batch = z_train[b_start:b_end, :]  # [B,E]
+            y_train_batch = y_train[b_start:b_end, :]  # [B,E]
+            loss_ = loss(model, z_train_batch, y_train_batch)
+            loss_.backward()
+            optimizer.step()
+            optimizer.zero_grad()
             # Reptile update
             for param in model.parameters():
                 param.data += reptile_lr * (param.data - param.detach())
-            # log
-            if e % log_interval == 0:
-                log.info(
-                    f"Epoch: {e:05} | Tr Loss: {loss_.item():.3f} | Time/Epoch: {int(time.time()-start_time):04}s"
-                )
         model.eval()
         with torch.no_grad():
-            test_loss = loss(model, z_test, p_test).item()
-        log.info(f"Fold {idx}, Test Loss: {test_loss}")
-        train_loss_list.append(loss_.item())
-        test_loss_list.append(test_loss)
-
-    np.savetxt(
-        f"results/{name}/train_loss.csv", np.array(train_loss_list), delimiter=","
-    )
-    np.savetxt(f"results/{name}/test_loss.csv", np.array(test_loss_list), delimiter=",")
+            loss_cv = loss(model, z_test, y_test).item()
+        log.info(
+            f"Epoch: {e:05} | CV Loss: {loss_cv:.3f} | Time: {int(time.time()-start_time):04}s"
+        )
+        if loss_cv < best:
+            best = loss_cv
+            log.info(f"saving best model from epoch {e}")
+            torch.save(model.state_dict(), os.path.join(save_dir, f"{name}.pt"))
 
 
 def main(args):
     data = args.data
     assert data in DATASETS
     idx = DATASETS.index(data)
-    log = setup_logger("log", name=data)
+    log = setup_logger("log", name=args.name)
     log.info(args)
-    log.info(f"Running Experiments {data}")
     z, p = import_data(data, root=args.root)  # numpy [N,E], [N,E]
+    N, E = z.shape
     log.info(f"total data shape: {z.shape}")
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = FitnessLayer(E).to(device)
     epoch = EPOCHS_LIST[idx]
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATES[idx][0])
     batch_size = MINIBATCHES[idx]
     reptile_lr = LEARNING_RATES[idx][1]
-    lr = LEARNING_RATES[idx][0]
     log.info(f"training on device: {device}")
-    os.makedirs("results", exist_ok=True)
-    train(z, p, data, device, epoch, batch_size, lr, reptile_lr, log, args.log_interval)
+    os.makedirs(args.save_dir, exist_ok=True)
+    train(
+        z,
+        p,
+        model,
+        optimizer,
+        device,
+        epoch,
+        batch_size,
+        reptile_lr,
+        log,
+        args.save_dir,
+        args.name,
+    )
 
 
 if __name__ == "__main__":
@@ -166,7 +168,13 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default="Human_Gut")
     parser.add_argument("--root", type=str, default=".")
     parser.add_argument(
-        "--log_interval", type=int, default=5, help="the logging interval"
+        "--save_dir", type=str, default="ckpt", help="the folder for saving the ckpt"
+    )
+    parser.add_argument(
+        "--name",
+        type=str,
+        default="Human_Gut",
+        help="determines the name of the experiment",
     )
     args = parser.parse_args()
     main(args)
