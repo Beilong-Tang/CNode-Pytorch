@@ -139,6 +139,8 @@ def train(
         train_loss_list.append(loss_.item())
         test_loss_list.append(test_loss)
 
+
+    os.makedirs(f"results/{name}", exist_ok= True)
     np.savetxt(
         f"results/{name}/train_loss.csv", np.array(train_loss_list), delimiter=","
     )
