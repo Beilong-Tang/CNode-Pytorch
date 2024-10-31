@@ -6,7 +6,7 @@ def setup_logger(output_path:str, log_to_file = True, name = "", add_date = True
     if add_date:
         name = name + datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     os.makedirs(output_path, exist_ok=True)
-    _format = "%(asctime)s|%(name)s|%(levelname)s||%(message)s"
+    _format = "%(asctime)s | %(name)s | %(levelname)s || %(message)s"
     if log_to_file:
         logging.basicConfig(
             level=logging.INFO,
@@ -22,6 +22,5 @@ def setup_logger(output_path:str, log_to_file = True, name = "", add_date = True
             format=_format,
             handlers=[logging.StreamHandler()],
         )
-    logger = logger = logging.getLogger()
-    logger.info()
+    logger = logging.getLogger()
     return logger

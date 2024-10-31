@@ -119,7 +119,7 @@ def train(
         with torch.no_grad():
             loss_cv = loss(model, z_test, y_test).item()
         log.info(
-            f"| Epoch: {e:05} | CV Loss: {loss_cv:.3f}| Time: {int(time.time()-start_time):04}s"
+            f"Epoch: {e:05} | CV Loss: {loss_cv:.3f} | Time: {int(time.time()-start_time):04}s"
         )
 
 
