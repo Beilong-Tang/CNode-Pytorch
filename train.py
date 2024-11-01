@@ -130,8 +130,8 @@ def train(
                 optimizer.step()
                 optimizer.zero_grad()
             # Reptile update
-            for param in model.parameters():
-                param.data += reptile_lr * (param.data - param.detach())
+            # for param in model.parameters():
+            #     param.data += reptile_lr * (param.data - param.detach())
             # log
             if e % log_interval == 0:
                 log.info(
