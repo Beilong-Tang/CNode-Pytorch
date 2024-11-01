@@ -29,7 +29,7 @@ where `--root` specifies the path to the original julia code with `Data` folder 
 
 The log files will be output to `./log` directory, and The
 
-## Result.
+## Result
 
 The average result in the julia repository is 0.1164. 
 
