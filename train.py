@@ -19,11 +19,16 @@ EPOCHS_LIST = [200, 100, 150, 50]
 MINIBATCHES = [5, 23, 5, 25]
 
 
+# Xavier Uniform Initialization (equivalent of xavier_uniform in Julia)
+def xavier_uniform(shape):
+    bound = np.sqrt(1 / shape[1])
+    return np.random.uniform(-bound, bound, shape)
+
 # FitnessLayer Class
 class FitnessLayer(nn.Module):
     def __init__(self, E):
         super(FitnessLayer, self).__init__()
-        self.W = nn.Parameter(torch.zeros(E, E))  # Initialize the weight matrix
+        self.W = nn.Parameter(torch.from_numpy(xavier_uniform((E,E))))  # Initialize the weight matrix
 
     def forward(self, t, p):
         ## p stands for the

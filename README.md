@@ -13,5 +13,14 @@ The original julia code for this paper is at [here](https://github.com/michel-ma
 
 ## Run an experiment 
 
-To run an experiment, do 
+We current support experiments: `["Drosophila_Gut", "Soil_Vitro", "Human_Gut", "Soil_Vivo"]`.
+
+To run one experiment, for example `Drosophila_Gut`, do 
+
+```shell
+python train.py --name Human_Gut --root <path-to-original-julia-repository>
+```
+where `--root` specifies the path to the original julia code with `Data` folder in it. 
+
+The log files will be output to `./log` directory, and The
 
