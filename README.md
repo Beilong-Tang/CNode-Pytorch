@@ -5,6 +5,11 @@ This repository is an unofficial pytorch implementation paper : "Predicting micr
 
 The original julia code for this paper is at [here](https://github.com/michel-mata/cNODE-paper).
 
+## Features
+
+Implement the classic cNODE structure.
+
+
 ## Pre-requisite 
 
 1. Make sure you clone the origianl julia repository [here](https://github.com/michel-mata/cNODE-paper).
@@ -24,3 +29,8 @@ where `--root` specifies the path to the original julia code with `Data` folder 
 
 The log files will be output to `./log` directory, and The
 
+## Result.
+
+The average result in the julia repository is 0.1164. 
+
+Our results are 0.1393.
