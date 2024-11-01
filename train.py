@@ -35,7 +35,7 @@ class FitnessLayer(nn.Module):
         f = self.W @ p
         f = f.unsqueeze(1)
         p = p.unsqueeze(1)
-        p_dot = p * (f - (torch.ones(p.size(0), 1).to(p.device) @ p.T) @ f)
+        p_dot = p * (f - (torch.ones(p.size(0), 1).double().to(p.device) @ p.T) @ f)
         return p_dot.squeeze(1)
 
 
@@ -110,10 +110,10 @@ def train(
         z_train, p_train = z[train_idx, :], p[train_idx, :]
         z_test, p_test = z[test_idx, :], p[test_idx, :]
         z_train, z_test, p_train, p_test = (
-            torch.from_numpy(z_train).float().to(device),
-            torch.from_numpy(z_test).float().to(device),
-            torch.from_numpy(p_train).float().to(device),
-            torch.from_numpy(p_test).float().to(device),
+            torch.from_numpy(z_train).to(device),
+            torch.from_numpy(z_test).to(device),
+            torch.from_numpy(p_train).to(device),
+            torch.from_numpy(p_test).to(device),
         )
         model = FitnessLayer(E).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)

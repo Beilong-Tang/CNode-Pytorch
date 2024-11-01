@@ -1,1 +1,2 @@
-python train.py --root /DKUdata/tangbl/medical/cNODE-paper 
+## Example tranining code on my server
+python train.py --data Drosophila_Gut --root /DKUdata/tangbl/medical/cNODE-paper 
