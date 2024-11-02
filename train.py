@@ -161,7 +161,10 @@ def main(args):
     log.info(f"Running Experiments {data}")
     z, p = import_data(data, root=args.root)  # numpy [N,E], [N,E]
     log.info(f"total data shape: {z.shape}")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if args.device is not None:
+        device = args.device
+    else:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
     epoch = EPOCHS_LIST[idx]
     batch_size = MINIBATCHES[idx]
     reptile_lr = LEARNING_RATES[idx][1]
@@ -175,6 +178,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default="Human_Gut")
     parser.add_argument("--root", type=str, default=".")
+    parser.add_argument("--device", type=str, default=None)
     parser.add_argument(
         "--log_interval", type=int, default=5, help="the logging interval"
     )
