@@ -31,6 +31,9 @@ The log files will be output to `./log` directory, and The
 
 ## Result
 
-The average result in the julia repository is 0.1164. 
-
-Our results are 0.1393.
+|      Name      | Paper results (average) | Ours (average) |
+| :------------: | :---------------------: | :------------: |
+| Drosophila_Gut |         0.1164          |     0.1393     |
+|   Soil_Vitro   |         0.1215          |    0.09451     |
+|   Soil_Vivo    |                         |  **Running**   |
+|   Human_Gut    |                         |  **Running**   |
