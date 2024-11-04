@@ -36,4 +36,4 @@ The log files will be output to `./log` directory, and The
 | Drosophila_Gut |         0.1164          |     0.1393     |
 |   Soil_Vitro   |         0.1215          |    0.09451     |
 |   Soil_Vivo    |                         |  **Running**   |
-|   Human_Gut    |                         |  **Running**   |
+|   Human_Gut    |          0.2834         |     0.2758     |
